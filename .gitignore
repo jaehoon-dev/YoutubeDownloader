@@ -1,5 +1,6 @@
 .vs
-Debug
+_builds
+_processing
 *.suo
 *.VC.db
 *.opendb
