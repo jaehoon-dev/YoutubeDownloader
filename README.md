@@ -1,5 +1,108 @@
 # YoutubeDownloader
-개인 공부 목적을 위해 만들고 있음,
+MFC 공부를 위해 만들어 봄, 실제 다운로드는 youtube-dl.exe을 이용해서 하고,
+MFC를 경험하기 위해 간단한 UI를 구성해봄
+
+
+# youtube-dl
+https://rg3.github.io/youtube-dl/
+참고 : http://blog.myso.kr/221196606351
+
+# ffmpeg
+https://ffmpeg.zeranoe.com/builds/
+
+
+# 영상의 Format 확인하기
+D:\test\youtube-dl.exe tbZrEeR3Zw8 -F
+위에 처럼 command에서 exe를 실행할때 영상의 ID(?)와 "-F"를 입력하면 해당 영상이
+지원하는 Format 리스트가 하단 처럼 나온다
+
+[youtube] tbZrEeR3Zw8: Downloading webpage
+[youtube] tbZrEeR3Zw8: Downloading video info webpage
+[youtube] tbZrEeR3Zw8: Extracting video information
+[youtube] tbZrEeR3Zw8: Downloading MPD manifest
+[info] Available formats for tbZrEeR3Zw8:
+format code  extension  resolution note
+139          m4a        audio only DASH audio   48k , m4a_dash container, mp4a.40.5@ 48k (22050Hz)
+249          webm       audio only DASH audio   51k , opus @ 50k, 1.01MiB
+250          webm       audio only DASH audio   65k , opus @ 70k, 1.21MiB
+171          webm       audio only DASH audio   91k , vorbis@128k, 1.85MiB
+251          webm       audio only DASH audio  113k , opus @160k, 2.17MiB
+140          m4a        audio only DASH audio  127k , m4a_dash container, mp4a.40.2@128k (44100Hz)
+160          mp4        256x144    DASH video   73k , mp4_dash container, avc1.4d400c, 30fps, video only
+278          webm       256x144    144p  100k , webm container, vp9, 30fps, video only, 1.49MiB
+133          mp4        426x240    DASH video  132k , mp4_dash container, avc1.4d4015, 30fps, video only
+242          webm       426x240    240p  196k , vp9, 30fps, video only, 1.95MiB
+134          mp4        640x360    DASH video  300k , mp4_dash container, avc1.4d401e, 30fps, video only
+243          webm       640x360    360p  341k , vp9, 30fps, video only, 3.60MiB
+244          webm       854x480    480p  553k , vp9, 30fps, video only, 6.03MiB
+135          mp4        854x480    DASH video  558k , mp4_dash container, avc1.4d401f, 30fps, video only
+136          mp4        1280x720   DASH video 1020k , mp4_dash container, avc1.4d401f, 30fps, video only
+247          webm       1280x720   720p 1087k , vp9, 30fps, video only, 14.12MiB
+137          mp4        1920x1080  DASH video 1932k , mp4_dash container, avc1.640028, 30fps, video only
+248          webm       1920x1080  1080p 2432k , vp9, 30fps, video only, 33.91MiB
+17           3gp        176x144    small , mp4v.20.3, mp4a.40.2@ 24k
+36           3gp        320x180    small , mp4v.20.3, mp4a.40.2
+43           webm       640x360    medium , vp8.0, vorbis@128k
+18           mp4        640x360    medium , avc1.42001E, mp4a.40.2@ 96k
+22           mp4        1280x720   hd720 , avc1.64001F, mp4a.40.2@192k (best)
+
+이 왼쪽의 숫자를 이용해서 다운로드가 가능하다, 현재 이 샘플 영상의 경우 이런저런 해상도와 이런저런 영상포맷을 지원하고 있다.
+
+만약 youtube-dl.exe tbZrEeR3Zw8 -f 137+140 이렇게 실행하면,
+137번의 mp4 1920X1080의 영상과, 140qjsdml m4a 사운드 파일 2개를 다운로드 한다.
+사운드와 영상이 따로 다운로드가 되어 이것을 합치려면 ffmpeg를 사용해야 하는데, 친절하게도 youtube-dl은 ffmpeg가 있으면
+다운로드 후 자동으로 영상을 합쳐준다. 
+youtube-dl.exe와 ffmpge.exe가 같은 폴더 내에 있으면 영상과 사운드 다운로드 후 자동으로 합쳐준다.
+( 환경변수를 이용하여 이 2개의 exe를 등록해도 될것이다 ---> 아마도.. )
+
+
+# CreateProcess 사용시
+절대경로로 사용할경우 CreateProcess의 첫번째 인자에 절대경로를 넣는다
+상대경로로 사용할 경우에는 첫째 인자값을 Null로 하고
+두번째 인자값을 "./hello/test.exe -파라미터"로 넣는다
+
+
+# PreBuildEvent
+내가 만든 다운로더를 사용하려면 어찌 되었든, youtube-dl과 ffmpeg가 있어야 한다. 그래서 빌드 시작전에
+youtube-dl과 ffmpeg를 카피하여 내가 만든 다운로더의 바이너리가 있는곳으로 copy하는 명령줄을 추가하였다
+YoutubeDownloader.vcxproj에 추가 되어있다. 
+
+
+# youtube-dl의 stdout를 리다이렉션 하기 위해 CreateProcess를 이용하여 youtube-dl.exe를 실행하였다
+
+
+# 다운로드 중 프로그램이 (동작없음) 상태가 되어 버리면
+반복문 처리가 되는 동안 프로그램이 응답없음 상태가 되는것을 방지하기 위해 아래의 코드를 반복문 안에 추가했다
+void CYoutubeDownloaderDlg::wait_in_loop(DWORD millisecond)
+{
+	MSG msg;
+	DWORD dwStart = GetTickCount();
+	
+	while (GetTickCount() - dwStart < millisecond)
+	{
+		while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
+		{
+			TranslateMessage(&msg);
+			DispatchMessage(&msg);
+		}
+	}
+}
+
+
+# 기능 추가 해야 할 것들... 언제가 될진 모르지만...
+1. 리스트 추가 후 다운로드 시작전에는 리스트를 삭제 할 수 없다.
+2. 지금은 137번 옵션과 140번 옵션을 하드코딩 하였는데, 추후 셀렉트 박스의 형태로 옵션을 제공하고자 한다
+3. MFC를 다뤄 보기 위해 만든 것이라, 정리가 필요하다
+4. 현재는 exe파일 위치에 다운로드 한 파일이 생성되는데, 별도의 위치에 세팅 할 수 있도록 할까 말까 고민중
+5. https://github.com/MrS0m30n3/youtube-dl-gui를 참고해서 UI 기능을 추가해도 될듯하다, 파이썬으로 되어있다
+6. 혹 오류로 인해 youtube-dl.exe가 종료되지 않고 작업관리자에 남아있다면, 프로그램 실행될때 프로세스를 종료하는 로직을 추가해야한다
+
+
+ 
+ 
+//---------------------------------------------------------------------------------------------// 
+이하 하단은 ShellExecute의 자료를 찾아보다 필요한 것들을 메모 한것들이다.
+
 
 ##ShellExecute
 *참고 : https://msdn.microsoft.com/en-us/library/windows/desktop/bb762153(v=vs.85).aspx
@@ -194,18 +297,6 @@ STARTUPINFO 구조체 변수를 초기화 한 다음에 이 변수의 포인터�
 
 
 출처: http://mititch.tistory.com/61 [미티치]
-
-
-
-
-*CreateProcess 사용시
-절대경로로 사용할경우
-CreateProcess의 첫번째 인자에 절대경로를 넣는다
-상대경로로 사용할 경우에는첫째 인자값을 Null로 하고
-두번째 인자값을 "./hello/test.exe"로 넣는다
-
-
-
 
 
 
