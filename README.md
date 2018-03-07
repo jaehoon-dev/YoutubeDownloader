@@ -99,6 +99,70 @@ void CYoutubeDownloaderDlg::wait_in_loop(DWORD millisecond)
 
 
  
+# 참고한 코드 - 콘솔프로그램 실행 결과 출력하기
+int GetCmdResult(CString cmdstr)
+{
+    char szBuff[256];
+    DWORD dwRead = 0, dwOut = 0, dwErr = 0;
+    HANDLE hStdOutWrite = NULL, hStdOutRead = NULL;
+    HANDLE hStdErrWrite = NULL, hStdErrRead = NULL;
+    STARTUPINFO si;
+    SECURITY_ATTRIBUTES sa;
+    PROCESS_INFORMATION pi;
+
+    sa.nLength = sizeof(SECURITY_ATTRIBUTES);
+    sa.lpSecurityDescriptor = NULL;
+    sa.bInheritHandle = TRUE;
+
+    CreatePipe(&hStdOutRead, &hStdOutWrite, &sa, 0);  /* 실행될 콘솔 프로그램에 넘길 stdout */
+    CreatePipe(&hStdErrRead, &hStdErrWrite, &sa, 0);  /* 실행될 콘솔 프로그램에 넘길 stderr */
+
+    ZeroMemory(&si,sizeof(STARTUPINFO));
+    si.cb = sizeof(STARTUPINFO);
+    si.dwFlags = STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW;
+    si.hStdOutput = hStdOutWrite;
+    si.hStdInput  = NULL;
+    si.hStdError  = hStdErrWrite;
+    si.wShowWindow = SW_HIDE;       /* 눈에 보이지 않는 상태로 프로세스 시작 */
+
+
+    CreateProcess(NULL,(char*)(LPCTSTR)cmdstr, NULL, NULL, TRUE, CREATE_NEW_CONSOLE, NULL, NULL, &si, &pi);
+    CloseHandle(pi.hThread);
+
+    while ( PeekNamedPipe(hStdOutRead, NULL, 0, NULL, &dwOut, NULL) || 
+            PeekNamedPipe(hStdErrRead, NULL, 0, NULL, &dwErr, NULL) )  /* 읽어들일 데이터가 있는가? */
+    { 
+        if ( dwOut <= 0 && dwErr <= 0 && WaitForSingleObject(pi.hProcess, 0) != WAIT_TIMEOUT )
+            break;  /* 실행되어진 콘솔 응용프로그램이 종료된 경우 */
+
+        while ( PeekNamedPipe(hStdOutRead, NULL, 0, NULL, &dwOut, NULL) && dwOut > 0 )
+        {
+            ReadFile(hStdOutRead, szBuff, sizeof(szBuff), &dwRead,NULL);
+            szBuff[dwRead] = 0;
+   //MessageBox(szBuff);
+            //printf("%s", szBuff);
+        }
+
+        while ( PeekNamedPipe(hStdErrRead, NULL, 0, NULL, &dwErr, NULL) && dwErr > 0 )
+        {
+            ReadFile(hStdErrRead, szBuff, sizeof(szBuff), &dwRead,NULL);
+            szBuff[dwRead] = 0;
+   //MessageBox(szBuff);
+            //printf("%s", szBuff);
+        }
+    }
+
+    CloseHandle(pi.hProcess);
+    CloseHandle(hStdOutRead);
+    CloseHandle(hStdOutWrite);
+    CloseHandle(hStdErrRead);
+    CloseHandle(hStdErrWrite);
+
+ return 0;
+}
+ 
+ 
+ 
  
 //---------------------------------------------------------------------------------------------// 
 이하 하단은 ShellExecute의 자료를 찾아보다 필요한 것들을 메모 한것들이다.
